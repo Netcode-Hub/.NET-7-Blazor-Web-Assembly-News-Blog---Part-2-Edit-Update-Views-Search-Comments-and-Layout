@@ -1,0 +1,319 @@
+﻿@page "/blog"
+@page "/blog/{id:int}"
+@inject INewsService newService
+@inject ICategoryService categoryService
+@inject IWriterService writerService
+<div class="row">
+    <div class="col-md-12">
+        <div class="alert alert-warning">@Message</div>
+        <div class="card">
+            @if (Id > 0)
+            {
+                <div class="card-header">Update Blog</div>
+            }
+            else
+            {
+                <div class="card-header">Add Blog</div>
+            }
+            <div class="card-body">
+                <EditForm Model="Model" OnValidSubmit="HandleOperation">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary style="list-style: none;" class="p-4" />
+
+                    <div class="form-group mt-4">
+                        <label for="email">Blog Title</label>
+                        <InputText Id="email" Class="form-control" @bind-Value="Model.Title" />
+                        <ValidationMessage For="@(() => Model.Title)" />
+                    </div>
+                    <div class="form-group mt-2">
+                        <label for="password">News Content</label>
+                        <SfRichTextEditor @ref="RteObj" ShowCharCount="true" Placeholder="Type something..."
+                                          @bind-Value="@Model.Publication" SaveInterval="5000" AutoSaveOnIdle="true">
+                            <RichTextEditorBackgroundColor ModeSwitcher="true" />
+                            <RichTextEditorFontColor ModeSwitcher="true" />
+                            <RichTextEditorFontFamily Default="Georgia" />
+                            <RichTextEditorToolbarSettings Items="@Tools" Type="ToolbarType.MultiRow" />
+                            <RichTextEditorQuickToolbarSettings Image="@Image" Link="@Link" Table="TableQuickToolbarItems"
+                                                                Audio="AudioQuickToolbarItems" Video="VideoQuickToolbarItems" />
+                            <RichTextEditorTableSettings Styles="@StyleItems" />
+                            <RichTextEditorImageSettings SaveUrl="api/Image/Save" Path="./Images/" />
+                        </SfRichTextEditor>
+                        <ValidationMessage For="@(() => Model.Publication)" />
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mt-2 border p-4">
+                                <label for="email">Public?</label><br />
+                                <SfCheckBox Label="Public" @bind-Checked="Model.IsPublic"></SfCheckBox>
+                                <ValidationMessage For="@(() => Model.IsPublic)" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mt-2 border p-3">
+                                <label for="email">News Source [Optional]</label>
+                                <InputText Class="form-control" @bind-Value="Model.Source" />
+                                <ValidationMessage For="@(() => Model.Source)" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group mt-4 border p-3">
+                                @{
+                                    string writ = null!;
+                                    string cat = null!;
+
+                                    if(Id > 0 && Model.Id > 0){
+                                        writ = Model.Writer!.Name!;
+                                        cat = Model.Category!.Name!;
+                                    }
+                                    else
+                                    {
+                                        writ = "Select Writer";
+                                        cat = "Select Category";
+                                    }
+
+
+                                }
+                                <label for="email">News Category</label>
+                                <SfDropDownList ID="category" TValue="string" TItem="Category" DataSource="@categories" Placeholder="@cat">
+                                    <DropDownListEvents TValue="string" TItem="Category" ValueChange="OnValueChangeCategory"></DropDownListEvents>
+                                    <DropDownListFieldSettings Value="Id" Text="Name"></DropDownListFieldSettings>
+                                </SfDropDownList>
+                                <ValidationMessage For="@(()=> Model!.CategoryId)"></ValidationMessage>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mt-4 border p-3">
+                                <label for="email">News Writer</label>
+                                <SfDropDownList ID="writer" TValue="string" TItem="Writer" DataSource="@writers" Placeholder="@writ">
+                                    <DropDownListEvents TValue="string" TItem="Writer" ValueChange="OnValueChangeWriter"></DropDownListEvents>
+                                    <DropDownListFieldSettings Value="Id" Text="Name"></DropDownListFieldSettings>
+                                </SfDropDownList>
+                                <ValidationMessage For="@(()=> Model.WriterId)"></ValidationMessage>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group mt-4 border p-3">
+                                <label class="form-label" for="image">Add Title Image</label>&nbsp; <span class="text-danger fw-bold">@uploadMessage</span>
+                                <InputFile id="image" OnChange="OnFileChange" class="form-control disabled "></InputFile>
+                                <ValidationMessage For="@(()=> Model.TitleImage)"></ValidationMessage>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mt-2">
+                            <img class="card-img-top border-0" src="@Model.TitleImage" style="width:200px; height:150px; border:0px;" />
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mt-2">
+                                @if (Id > 0)
+                                {
+                                    <button type="submit" class="btn btn-outline-warning float-end m-2">
+                                        <span class="oi oi-arrow-circle-top"></span>&nbsp; Update News
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="btn btn-outline-primary float-end m-2">
+                                        <span class="oi oi-plus"></span>&nbsp; Add News
+                                    </button>
+                                }
+                                <button type="reset" class="btn btn-outline-danger float-end m-2">
+                                    <span class="oi oi-circle-x"></span>&nbsp; Reset
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </EditForm>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+
+@code {
+    [Parameter] public int Id { get; set; } = 0;
+
+    SfRichTextEditor RteObj = new();
+
+    string uploadMessage = string.Empty;
+    string Message = string.Empty;
+
+    News Model = new();
+    List<Writer> writers = new();
+    List<Category> categories = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        writers = await writerService.Get();
+        categories = await categoryService.Get();
+    }
+
+    private async Task HandleOperation()
+    {
+        Message = "";
+        if (Id > 0)
+        {
+            //update the news blog
+            var result = await newService.AddOrUpdateNews(Model);
+            Message = result!.Message!;
+        }
+        else
+        {
+            //add new news blog
+            var result = await newService.AddOrUpdateNews(Model);
+            Message = result!.Message!;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id > 0)
+            Model = await newService.GetNews(Id);
+    }
+
+    //Upload image in base 64 string
+    private async Task OnFileChange(InputFileChangeEventArgs e)
+    {
+        FileInfo fileInfo = new FileInfo(e.File.Name);
+        var format = ""; uploadMessage = "";
+        if (fileInfo.Extension.ToLower().Contains(".jpg"))
+        {
+            format = "image/jpg";
+        }
+        else if (fileInfo.Extension.ToLower().Contains(".jpeg"))
+        {
+            format = "image/jpeg";
+        }
+        else if (fileInfo.Extension.ToLower().Contains(".png"))
+        {
+            format = "image/png";
+        }
+        else
+        {
+            uploadMessage = "Invalid file selected (jpg, jpeg, png only)";
+            return;
+        }
+        var resizeImage = await e.File.RequestImageFileAsync(format, 300, 300);
+        var buffer = new byte[resizeImage.Size];
+        await resizeImage.OpenReadStream().ReadAsync(buffer);
+        var imageData = $"data:{format};base64,{Convert.ToBase64String(buffer)}";
+        Model.TitleImage = imageData;
+        //Console.WriteLine(Model.TitleImage);
+    }
+
+
+    //dropdowns
+    public void OnValueChangeCategory(ChangeEventArgs<string, Category> args) => Model.CategoryId = Convert.ToInt16(args.Value);
+    public void OnValueChangeWriter(ChangeEventArgs<string, Writer> args) => Model.WriterId = Convert.ToInt16(args.Value);
+
+    //SfTextEditorTools
+    private List<ToolbarItemModel> Tools = new List<ToolbarItemModel>()
+    {
+        new ToolbarItemModel() { Command = ToolbarCommand.Bold },
+        new ToolbarItemModel() { Command = ToolbarCommand.Italic },
+        new ToolbarItemModel() { Command = ToolbarCommand.Underline },
+        new ToolbarItemModel() { Command = ToolbarCommand.StrikeThrough },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontName },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontSize },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.FontColor },
+        new ToolbarItemModel() { Command = ToolbarCommand.BackgroundColor },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.Formats },
+        new ToolbarItemModel() { Command = ToolbarCommand.Alignments },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.LowerCase },
+        new ToolbarItemModel() { Command = ToolbarCommand.UpperCase },
+        new ToolbarItemModel() { Command = ToolbarCommand.SuperScript },
+        new ToolbarItemModel() { Command = ToolbarCommand.SubScript },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.OrderedList },
+        new ToolbarItemModel() { Command = ToolbarCommand.UnorderedList },
+        new ToolbarItemModel() { Command = ToolbarCommand.Outdent },
+        new ToolbarItemModel() { Command = ToolbarCommand.Indent },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.CreateLink },
+        new ToolbarItemModel() { Command = ToolbarCommand.Image },
+        new ToolbarItemModel() { Command = ToolbarCommand.CreateTable },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.ClearFormat },
+        new ToolbarItemModel() { Command = ToolbarCommand.Print },
+        new ToolbarItemModel() { Command = ToolbarCommand.SourceCode },
+        new ToolbarItemModel() { Command = ToolbarCommand.FullScreen },
+        new ToolbarItemModel() { Command = ToolbarCommand.Separator },
+        new ToolbarItemModel() { Command = ToolbarCommand.Undo },
+        new ToolbarItemModel() { Command = ToolbarCommand.Redo },
+        new ToolbarItemModel() { Command = ToolbarCommand.Audio },
+         new ToolbarItemModel() { Command = ToolbarCommand.Video },
+          new ToolbarItemModel() { Command = ToolbarCommand.NumberFormatList },
+        new ToolbarItemModel() { Command = ToolbarCommand.BulletFormatList },
+        new ToolbarItemModel() { Command = ToolbarCommand.InsertCode }
+    };
+
+    //Image in RichText editor
+    private List<ImageToolbarItemModel> Image = new List<ImageToolbarItemModel>()
+    {
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.Replace },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.Align },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.Caption },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.Remove },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.OpenImageLink },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.HorizontalSeparator },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.EditImageLink },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.RemoveImageLink },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.Display },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.AltText },
+        new ImageToolbarItemModel() { Command = ImageToolbarCommand.Dimension }
+    };
+
+    //Link in SfRichTextEditor
+    private List<LinkToolbarItemModel> Link = new List<LinkToolbarItemModel>()
+    {
+        new LinkToolbarItemModel() { Command = LinkToolbarCommand.Open },
+        new LinkToolbarItemModel() { Command = LinkToolbarCommand.Edit },
+        new LinkToolbarItemModel() { Command = LinkToolbarCommand.UnLink }
+    };
+
+    //Table in RichTextEditor
+    private List<TableToolbarItemModel> TableQuickToolbarItems = new List<TableToolbarItemModel>()
+    {
+        new TableToolbarItemModel() { Command = TableToolbarCommand.TableHeader },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.TableRows },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.TableColumns },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.TableCell },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.HorizontalSeparator },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.TableRemove },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.BackgroundColor },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.TableCellVerticalAlign },
+        new TableToolbarItemModel() { Command = TableToolbarCommand.Styles }
+    };
+
+    //Audio in RichTextEditor
+    private List<AudioToolbarItemModel> AudioQuickToolbarItems = new List<AudioToolbarItemModel>()
+    {
+        new AudioToolbarItemModel() { Command = AudioToolbarCommand.AudioRemove },
+        new AudioToolbarItemModel() { Command = AudioToolbarCommand.AudioReplace},
+        new AudioToolbarItemModel() { Command = AudioToolbarCommand.AudioLayoutOption }
+    };
+
+    //Video in RichTextEditor
+    private List<VideoToolbarItemModel> VideoQuickToolbarItems = new List<VideoToolbarItemModel>()
+    {
+        new VideoToolbarItemModel() { Command = VideoToolbarCommand.VideoReplace },
+        new VideoToolbarItemModel() { Command = VideoToolbarCommand.VideoRemove},
+        new VideoToolbarItemModel() { Command = VideoToolbarCommand.VideoLayoutOption },
+        new VideoToolbarItemModel() { Command = VideoToolbarCommand.HorizontalSeparator },
+        new VideoToolbarItemModel() { Command = VideoToolbarCommand.VideoAlign},
+        new VideoToolbarItemModel() { Command = VideoToolbarCommand.VideoDimension}
+    };
+
+    private List<DropDownItemModel> StyleItems = new List<DropDownItemModel>()
+    {
+        new DropDownItemModel() { Text = "Alternate Rows" }
+    };
+
+}

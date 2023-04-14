@@ -1,0 +1,259 @@
+﻿@page "/"
+@page "/{url}"
+@page "/category/{categoryname}"
+@page "/news/search/{SearchText}"
+@inject INewsService newsService
+@inject IJSRuntime JS
+ 
+@if (Model == null)
+{
+}
+else
+{
+    var listData = Model.Skip(SkipValue).Take(TakeValue).ToList();
+    <div class="row">
+        <div class="col-md-8">
+            @foreach (var item in listData)
+            {
+                <div class="card mb-3">
+                    <div class="card-header text-primary">
+                        <table>
+                            <tr>
+                                <td><img src="@item.TitleImage" class="card-img-top" style="width:150px; height:100px; border-radius:20px;" /></td>
+                                <td><h2>@item.Title</h2></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var PublicationInHtmlMarkup = new MarkupString(item.Publication!);
+                        }
+                        @PublicationInHtmlMarkup
+                    </div>
+                </div>
+                <div class="row">
+                    <h3 class="text-center text-muted">Any Comment?</h3>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header"><h3 class="text-muted">Write your Comment</h3></div>
+                            <div class="card-body">
+                                <EditForm Model="comment" OnValidSubmit="HandleComment">
+                                    <DataAnnotationsValidator /><ValidationSummary style="list-style: none;" class="p-4" />
+                                    @{
+                                        int newsId = item.Id; comment.NewsId = newsId;
+                                    }
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group mt-4">
+                                                <label for="email">Name</label>
+                                                <InputText Id="email" Class="form-control" @bind-Value="comment.Name" />
+                                                <ValidationMessage For="@(() => comment.Name)" />
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group mt-4">
+                                                <label for="email" title="Incase we need to reply">Email Address [Optional]</label>
+                                                <InputText Id="email" Class="form-control" @bind-Value="comment.Email" />
+                                                <ValidationMessage For="@(() => comment.Email)" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group mt-4">
+                                        <label for="email">Comment</label>
+                                        <InputTextArea Class="form-control" @bind-Value="comment.Message" placeholder="Write Something..." />
+                                        <ValidationMessage For="@(() => comment.Message)" />
+                                    </div>
+                                    <div class="form-group mt-4">
+                                        <button class="btn btn-outline-success float-end" type="submit">Submit</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6" style="overflow:scroll; overflow-x: auto; height:400px;">
+                        <ul class="list-group">
+                            @if (comments != null)
+                            {
+                                foreach (var i in item.Comments!)
+                                {
+                                    <li class="list-group-item">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <table>
+                                                    <tr>
+                                                        <td class="fw-bold"> @i.Name &nbsp; </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>@i.Message</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                           
+                                        </div>
+                                    </li>
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            }
+
+        </div>
+        <div class="col-md-2">
+            @if (Top8 != null)
+            {
+                foreach (var item in Top8)
+                {
+
+                    <ul class="list-group">
+                        <li class="list-group-item-action mb-2 p-3" style="list-style:none;">
+                            <a href="@item.Url" style="text-decoration:none;">@item.Title</a>
+                        </li>
+                    </ul>
+
+                }
+            }
+        </div>
+        <div class="col-md-2">
+            @if (Top8 != null)
+            {
+                foreach (var item in Top8)
+                {
+
+                    <ul class="list-group">
+                        <li style="list-style:none;">
+                            <a href="@item.Url">
+                                <div class="card">
+                                    <img src="@item.TitleImage" class="card-img-top p-2" style="width:220px; height:150px;" />
+                                    <div class="card-body">
+                                        @item.Title
+                                    </div>
+                                </div>
+                            </a>
+                        </li>
+                    </ul>
+
+                }
+            }
+        </div>
+        @if (Url == null)
+        {
+            <SfPager @ref="@Page" PageSize=1 NumericItemsCount=4 TotalItemsCount=Model.Count() ItemClick="Click">
+            </SfPager>
+        }
+    </div>
+
+    <div class="row mt-5">
+        <h3 class="text-center mb-2 display-6 fw-bold">Latest News</h3>
+        @if (Top8 != null)
+        {
+            foreach (var item in Top8)
+            {
+                <div class="col-md-3">
+                    <a href="@item.Url">
+                        <div class="card">
+                            <img src="@item.TitleImage" class="card-img-top p-2" style="width:350px; height:150px;" />
+                            <div class="card-body">
+                                @item.Title
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        }
+    </div>
+    <div class="row mt-3">
+        <div class="col-md-12">
+            <div class="card bg-warning">
+                <div class="card-body">
+                    <h3 class="text-center">Netcode-Hub News</h3>
+                    <p class="text-start">
+                        Follow us on:
+                        <br>
+                        <ul class="list-group list-group-horizontal">
+                            <li class="list-group-item">Facebook</li>
+                            <li class="list-group-item">Twitter</li>
+                            <li class="list-group-item">Instagram</li>
+                        </ul>
+                    </p>
+
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@code {
+    [Parameter] public string SearchText { get; set; } = string.Empty;
+    [Parameter] public string CategoryName { get; set; } = string.Empty;
+    [Parameter] public string Url { get; set; } = string.Empty;
+    SfPager Page = new();
+    public int SkipValue { get; set; }
+    public int TakeValue { get; set; } = 1;
+
+    Comment comment = new();
+    List<Comment> comments = new();
+    List<News> Model = new();
+    List<News> Top8 = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await GetAllNewsData();
+            Top8 = await newsService.Top();
+        }
+        catch (Exception) { }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+
+        if (Url != null)
+        {
+            SkipValue = 0; TakeValue = 1;
+            var result = await newsService.GetNewByUrl(Url);
+            if (result != null)
+            {
+                Model.Clear();
+                Model.Add(result);
+            }
+        }
+
+        if (CategoryName != null)
+        {
+            Model = await newsService.GetNewsByCategory(CategoryName);
+        }
+
+        if (SearchText != null)
+        {
+            Model.Clear();
+            Model = await newsService.SearchNews(SearchText);
+        }
+    }
+
+    private async Task HandleComment()
+    {
+        var response = await newsService.SendComment(comment);
+        var r = await newsService.GetNews(comment.NewsId);
+        if(r != null)
+        {
+            Model.Clear();
+            Model.Add(r);
+        }
+        await JS.InvokeVoidAsync("alert", response.Message);
+    }
+
+    private async Task GetAllNewsData()
+    {
+        Model = await newsService.Get();
+    }
+
+    public void Click(PagerItemClickEventArgs args)
+    {
+        SkipValue = (args.CurrentPage * Page.PageSize) - Page.PageSize;
+        TakeValue = Page.PageSize;
+    }
+}

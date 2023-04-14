@@ -1,0 +1,69 @@
+﻿@page "/manage-blog"
+@inject INewsService newsService
+@inject IJSRuntime JS
+@inject NavigationManager navigationManager
+<div class="row">
+    @if (Model != null)
+    {
+        @foreach (var item in Model)
+        {
+            <div class="col-md-3">
+                <div class="card">
+                    <img src="@item.TitleImage" class="card-img-top p-2" style="width:350px; height:150px;" />
+                    <div class="card-body">
+                        @item.Title
+                    </div>
+                    <div class="card-footer text-center">
+                        <button class="btn btn-none" @onclick="(async ()=> await HandleDelete(item.Id, item.Title!))">
+                            <span class="oi oi-trash fs-4 text-danger"></span>
+                        </button>
+                        <button class="btn btn-none" @onclick="(()=>HandleUpdate(item.Id))">
+                            <span class="oi oi-arrow-circle-top fs-4 text-warning"></span>
+                        </button>
+                        <button class="btn btn-none" @onclick="(()=>HandleView(item.Url!))">
+                            <span class="oi oi-eye fs-4 text-info"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+
+@code {
+    List<News> Model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetNewsData();
+    }
+
+    private async Task HandleDelete(int id, string title)
+    {
+        bool confirm = await JS.InvokeAsync<bool>("confirm", $"Are you sure you want to delete blog with the title :{title} ?");
+        if (confirm)
+        {
+            var response = await newsService.DeleteNews(id);
+            await JS.InvokeVoidAsync("alert", response.Message);
+            await GetNewsData();
+        }
+        else { return; }
+    }
+
+
+    private void HandleUpdate(int id)
+    {
+        navigationManager.NavigateTo($"blog/{id}");
+    }
+
+    private void HandleView(string url)
+    {
+        navigationManager.NavigateTo($"/{url}");
+    }
+
+    private async Task GetNewsData()
+    {
+        Model = await newsService.Get();
+    }
+}
